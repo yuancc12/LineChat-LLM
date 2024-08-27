@@ -1,0 +1,80 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+# 載入 LINE Message API 相關函式庫
+from linebot import LineBotApi, WebhookHandler
+from linebot.exceptions import InvalidSignatureError
+from linebot.models import MessageEvent, TextMessage, TextSendMessage
+
+import json
+import openai
+
+app = Flask(__name__)
+openai.api_key = 'API key'  # 將 API Key 放這裏
+
+@app.route("/", methods=['POST'])
+def linebot():
+    body = request.get_data(as_text=True)  # 取得收到的訊息內容
+    try:
+        json_data = json.loads(body)  # json 格式化訊息內容
+        access_token = 'Line-Developer access_token' # 將 Access token 放這裏
+        secret = 'Line-Developer secret' # 將 secret 放這裏
+        line_bot_api = LineBotApi(access_token)  # 確認 token 是否正確
+        handler = WebhookHandler(secret)  # 確認 secret 是否正確
+        signature = request.headers['X-Line-Signature']  # 加入回傳的 headers
+        handler.handle(body, signature)  # 綁定訊息回傳的相關資訊
+        tk = json_data['events'][0]['replyToken']  # 取得回傳訊息的 Token
+        message_type = json_data['events'][0]['message']['type']  # 取得 LINE 收到的訊息類型
+
+        # 判斷如果是文字
+        if message_type == 'text':
+            msg = json_data['events'][0]['message']['text']  # 取得 LINE 收到的文字訊息
+
+            # 使用 OpenAI 的 ChatGPT 模型進行回應 (新 API 方法)
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "你好，你是AI卡比巴拉聊天機器人。請基於使用者的問題進行回饋並且要表現出與世俗無感想佛祖一樣"},
+                    {"role": "user", "content": msg}
+                ],
+            )
+
+            # 处理 OpenAI 返回的响应
+            if response and 'choices' in response and len(response['choices']) > 0:
+                response_text = response['choices'][0]['message']['content']
+            else:
+                response_text = "No completion found"
+
+            line_bot_api.reply_message(tk, TextSendMessage(text=response_text))  # 回傳訊息
+
+        # 判斷如果是圖片
+        elif message_type == 'image':
+            msgID = json_data['events'][0]['message']['id']  # 取得訊息 id
+            message_content = line_bot_api.get_message_content(msgID)  # 根據訊息 ID 取得訊息內容
+            # 在同樣的資料夾中建立以訊息 ID 為檔名的 .jpg 檔案
+            with open(f'{msgID}.jpg', 'wb') as fd:
+                fd.write(message_content.content)  # 以二進位的方式寫入檔案
+            reply = '圖片儲存完成！'
+            line_bot_api.reply_message(tk, TextSendMessage(text=reply))  # 回傳訊息
+
+        # 判斷如果是影片
+        elif message_type == 'video':
+            msgID = json_data['events'][0]['message']['id']
+            message_content = line_bot_api.get_message_content(msgID)
+            with open(f'{msgID}.mp4', 'wb') as fd:
+                fd.write(message_content.content)
+            reply = '影片儲存完成！'
+            line_bot_api.reply_message(tk, TextSendMessage(text=reply))  # 回傳訊息
+
+        else:
+            reply = '你傳的不是文字或圖片呦～'
+            line_bot_api.reply_message(tk, TextSendMessage(text=reply))  # 回傳訊息
+
+    except InvalidSignatureError:
+        print("Invalid signature. Check your channel access token and secret.")
+    except Exception as e:
+        print(f"Error: {str(e)}")  # 如果發生錯誤，印出錯誤訊息
+
+    return 'OK'  # 驗證 Webhook 使用，不能省略
+
+if __name__ == "__main__":
+    app.run()
