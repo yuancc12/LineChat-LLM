@@ -9,15 +9,15 @@ import json
 import openai
 import base64
 app = Flask(__name__)
-openai.api_key = 'sk-tFwxPfQONex7TJvtQzeg_GVrFhtFSUNwherKbzLhxNT3BlbkFJzixrWtkeHp8PKUDJlcZMo8JxKunvm7KkmbNk4rEuMA'  # 將 API Key 放這裏
+openai.api_key = 'API key'  # 將 API Key 放這裏
 
 @app.route("/", methods=['POST'])
 def linebot():
     body = request.get_data(as_text=True)  # 取得收到的訊息內容
     try:
         json_data = json.loads(body)  # json 格式化訊息內容
-        access_token = 'uxZFucQDZId8+j6/cpmd0k7A9InMPxaNUySqA2an1wAHI9tVxzvDsof6DrIQYmi1T2c6ISbrwE5nZZ/OUjAztPzsfyfaZHwSflc0+D8MWSoDsT/mtgvkVDvx7aQpkjLfupz8Nwt9TyG6UIZ0gqyjSAdB04t89/1O/w1cDnyilFU='
-        secret = 'ee02e1c41566c3babdc26e7adea2e0da'
+        access_token = 'Line Developer access token'
+        secret = 'Line Developer secret'
         line_bot_api = LineBotApi(access_token)  # 確認 token 是否正確
         handler = WebhookHandler(secret)  # 確認 secret 是否正確
         signature = request.headers['X-Line-Signature']  # 加入回傳的 headers
